@@ -1,0 +1,21 @@
+# Python
+*.pyc
+__pycache__/
+
+# Environments
+venv/
+.vevn/
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# System files
+.DS_Store
+Thumbs.db
+
+# PyCharm
+.idea/
+
+# Other
+.env
