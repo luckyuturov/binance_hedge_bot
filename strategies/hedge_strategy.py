@@ -18,10 +18,10 @@ def get_current_positions():
         print("Ошибка при получении позиций:", e)
         return None, None
 
-# Функция для открытия лонг позиции
+# Функция для открытия лонг позиции с выводом цены
 def open_long_position():
     long_position, _ = get_current_positions()
-    
+
     if long_position and float(long_position['positionAmt']) > 0:
         print(f"Лонг позиция уже открыта по цене: {long_position['entryPrice']}")
         return float(long_position['entryPrice'])
@@ -41,7 +41,7 @@ def open_long_position():
         print("Ошибка при открытии лонг позиции:", e)
         return None
 
-# Функция для открытия шорт позиции
+# Функция для открытия шорт позиции с выводом цены
 def open_short_position():
     _, short_position = get_current_positions()
 
@@ -64,33 +64,41 @@ def open_short_position():
         print("Ошибка при открытии шорт позиции:", e)
         return None
 
-# Функция для закрытия лонг позиции
+# Функция для закрытия лонг позиции с выводом цены закрытия и открытия
 def close_long_position():
     try:
-        order = client.futures_create_order(
-            symbol=TRADE_SYMBOL,
-            side="SELL",
-            positionSide="LONG",  # Указываем, что закрываем лонг позицию
-            type="MARKET",
-            quantity=TRADE_QUANTITY,
-            reduce_only=True
-        )
-        print("Лонг позиция закрыта:", order)
+        long_position, _ = get_current_positions()
+        if long_position:
+            entry_price = float(long_position['entryPrice'])
+            mark_price = float(client.futures_mark_price(symbol=TRADE_SYMBOL)['markPrice'])
+            order = client.futures_create_order(
+                symbol=TRADE_SYMBOL,
+                side="SELL",
+                positionSide="LONG",  # Указываем, что закрываем лонг позицию
+                type="MARKET",
+                quantity=TRADE_QUANTITY,
+                reduce_only=True
+            )
+            print(f"Лонг позиция закрыта по цене: {mark_price}, была открыта по цене: {entry_price}")
     except Exception as e:
         print("Ошибка при закрытии лонг позиции:", e)
 
-# Функция для закрытия шорт позиции
+# Функция для закрытия шорт позиции с выводом цены закрытия и открытия
 def close_short_position():
     try:
-        order = client.futures_create_order(
-            symbol=TRADE_SYMBOL,
-            side="BUY",
-            positionSide="SHORT",  # Указываем, что закрываем шорт позицию
-            type="MARKET",
-            quantity=TRADE_QUANTITY,
-            reduce_only=True
-        )
-        print("Шорт позиция закрыта:", order)
+        _, short_position = get_current_positions()
+        if short_position:
+            entry_price = float(short_position['entryPrice'])
+            mark_price = float(client.futures_mark_price(symbol=TRADE_SYMBOL)['markPrice'])
+            order = client.futures_create_order(
+                symbol=TRADE_SYMBOL,
+                side="BUY",
+                positionSide="SHORT",  # Указываем, что закрываем шорт позицию
+                type="MARKET",
+                quantity=TRADE_QUANTITY,
+                reduce_only=True
+            )
+            print(f"Шорт позиция закрыта по цене: {mark_price}, была открыта по цене: {entry_price}")
     except Exception as e:
         print("Ошибка при закрытии шорт позиции:", e)
 
@@ -108,18 +116,32 @@ def check_profit_and_close_position():
         if long_position:
             long_pnl = float(long_position['unRealizedProfit'])
             print(f"Текущая прибыль по лонг позиции: {long_pnl}")
-            if long_pnl >= 3:
-                print(f"Закрытие лонг позиции с прибылью: {long_pnl}")
-                close_long_position()
-                open_long_position()
+            if long_pnl >= 10:
+                print(f"Попытка закрытия лонг позиции с прибылью: {long_pnl}")
+                
+                # Повторная проверка перед закрытием
+                long_position, _ = get_current_positions()  # Получаем актуальную позицию
+                long_pnl = float(long_position['unRealizedProfit'])
+                if long_pnl >= 3:
+                    close_long_position()
+                    open_long_position()
+                else:
+                    print(f"Позиция уже не в прибыли: {long_pnl}, не закрываем.")
         
         if short_position:
             short_pnl = float(short_position['unRealizedProfit'])
             print(f"Текущая прибыль по шорт позиции: {short_pnl}")
-            if short_pnl >= 3:
-                print(f"Закрытие шорт позиции с прибылью: {short_pnl}")
-                close_short_position()
-                open_short_position()
+            if short_pnl >= 10:
+                print(f"Попытка закрытия шорт позиции с прибылью: {short_pnl}")
+                
+                # Повторная проверка перед закрытием
+                _, short_position = get_current_positions()  # Получаем актуальную позицию
+                short_pnl = float(short_position['unRealizedProfit'])
+                if short_pnl >= 3:
+                    close_short_position()
+                    open_short_position()
+                else:
+                    print(f"Позиция уже не в прибыли: {short_pnl}, не закрываем.")
 
     except Exception as e:
         print("Ошибка при проверке прибыли/убытка:", e)
@@ -138,4 +160,4 @@ def hedge_trade():
             # get_open_positions()
             # time.sleep(5)
     else:
-        print("Ошибка: не удалось открыть обе позиции.")    
+        print("Ошибка: не удалось открыть обе позиции.")   
